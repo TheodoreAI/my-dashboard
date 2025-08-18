@@ -73,10 +73,12 @@
 
 <script>
 import { ref, onMounted } from 'vue';
+import { useAuth } from '../services/auth.js';
 
 export default {
   name: 'CitiesDashboard',
   setup() {
+    const { getAuthHeaders } = useAuth();
     const form = ref({
       name: '',
       country: '',
@@ -90,7 +92,7 @@ export default {
     const showForm = ref(false);
     const editingCity = ref(null);
     const isEditing = ref(false);
-    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/cities`;
+    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/db/cities`;
 
     const fetchCities = async () => {
       loading.value = true;
@@ -122,15 +124,15 @@ export default {
       try {
         const res = await fetch(`${apiEndpoint}/${cityId}`, {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: getAuthHeaders()
         });
         if (res.ok) {
           // Remove city from local array
           cities.value = cities.value.filter(city => city.id !== cityId);
+          response.value = 'City deleted successfully!';
         } else {
-          alert('Failed to delete city');
+          const errorData = await res.json();
+          alert('Failed to delete city: ' + (errorData.message || 'Unknown error'));
         }
       } catch (err) {
         alert('Error deleting city: ' + err.message);
@@ -144,9 +146,7 @@ export default {
           // Update existing city
           res = await fetch(`${apiEndpoint}/${editingCity.value.id}`, {
             method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -160,15 +160,14 @@ export default {
             isEditing.value = false;
             editingCity.value = null;
           } else {
-            response.value = 'Error: Failed to update city';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to update city');
           }
         } else {
           // Add new city
           res = await fetch(`${apiEndpoint}`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -176,7 +175,8 @@ export default {
             // Refresh cities list to get the new city with ID
             fetchCities();
           } else {
-            response.value = 'Error: Failed to add city';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to add city');
           }
         }
         

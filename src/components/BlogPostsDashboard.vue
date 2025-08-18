@@ -164,10 +164,12 @@
 
 <script>
 import { ref, onMounted, watch } from 'vue';
+import { useAuth } from '../services/auth.js';
 
 export default {
   name: 'BlogPostsDashboard',
   setup() {
+    const { getAuthHeaders } = useAuth();
     const form = ref({
       title: '',
       slug: '',
@@ -195,7 +197,7 @@ export default {
     const editingPost = ref(null);
     const isEditing = ref(false);
     const tagsInput = ref('');
-    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/blog-posts`;
+    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/db/blog-posts`;
 
     // Watch title to auto-generate slug
     watch(() => form.value.title, (newTitle) => {
@@ -238,15 +240,15 @@ export default {
       try {
         const res = await fetch(`${apiEndpoint}/${postId}`, {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: getAuthHeaders()
         });
         if (res.ok) {
           // Remove post from local array
           blogPosts.value = blogPosts.value.filter(post => post.id !== postId);
+          response.value = 'Blog post deleted successfully!';
         } else {
-          alert('Failed to delete blog post');
+          const errorData = await res.json();
+          alert('Failed to delete blog post: ' + (errorData.message || 'Unknown error'));
         }
       } catch (err) {
         alert('Error deleting blog post: ' + err.message);
@@ -266,9 +268,7 @@ export default {
           // Update existing post
           res = await fetch(`${apiEndpoint}/${editingPost.value.id}`, {
             method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -282,15 +282,14 @@ export default {
             isEditing.value = false;
             editingPost.value = null;
           } else {
-            response.value = 'Error: Failed to update blog post';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to update blog post');
           }
         } else {
           // Add new post
           res = await fetch(apiEndpoint, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -298,7 +297,8 @@ export default {
             // Refresh posts list to get the new post with ID
             fetchBlogPosts();
           } else {
-            response.value = 'Error: Failed to add blog post';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to add blog post');
           }
         }
         

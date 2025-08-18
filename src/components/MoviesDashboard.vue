@@ -73,10 +73,13 @@
 
 <script>
 import { ref, onMounted } from 'vue';
+import { useAuth } from '../services/auth.js';
 
 export default {
   name: 'MoviesDashboard',
   setup() {
+    const { getAuthHeaders } = useAuth();
+    
     const form = ref({
       title: '',
       year: '',
@@ -90,7 +93,7 @@ export default {
     const showForm = ref(false);
     const editingMovie = ref(null);
     const isEditing = ref(false);
-    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/movies`;
+    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/db/movies`;
 
     const fetchMovies = async () => {
       loading.value = true;
@@ -122,15 +125,15 @@ export default {
       try {
         const res = await fetch(`${apiEndpoint}/${movieId}`, {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: getAuthHeaders()
         });
         if (res.ok) {
           // Remove movie from local array
           movies.value = movies.value.filter(movie => movie.id !== movieId);
+          response.value = 'Movie deleted successfully!';
         } else {
-          alert('Failed to delete movie');
+          const errorData = await res.json();
+          alert('Failed to delete movie: ' + (errorData.message || 'Unknown error'));
         }
       } catch (err) {
         alert('Error deleting movie: ' + err.message);
@@ -144,9 +147,7 @@ export default {
           // Update existing movie
           res = await fetch(`${apiEndpoint}/${editingMovie.value.id}`, {
             method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -160,15 +161,14 @@ export default {
             isEditing.value = false;
             editingMovie.value = null;
           } else {
-            response.value = 'Error: Failed to update movie';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to update movie');
           }
         } else {
           // Add new movie
           res = await fetch(`${apiEndpoint}`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -176,7 +176,8 @@ export default {
             // Refresh movie list to get the new movie with ID
             fetchMovies();
           } else {
-            response.value = 'Error: Failed to add movie';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to add movie');
           }
         }
         
