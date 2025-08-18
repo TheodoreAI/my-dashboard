@@ -2,13 +2,20 @@
   <div class="blog-posts-container">
     <header class="header">
       <h1>Blog Posts Dashboard</h1>
-      <button @click="showForm = !showForm; if (!showForm) cancelEdit()" class="add-button">
+      <button 
+        v-if="isAuthenticated"
+        @click="showForm = !showForm; if (!showForm) cancelEdit()" 
+        class="add-button"
+      >
         {{ showForm ? 'Hide Form' : 'Add New Post' }}
       </button>
+      <div v-else class="auth-notice">
+        <p>🔒 Login required to add or edit blog posts</p>
+      </div>
     </header>
 
     <!-- Add/Edit Blog Post Form -->
-    <div v-if="showForm" class="form-container">
+    <div v-if="showForm && isAuthenticated" class="form-container">
       <h2>{{ isEditing ? 'Edit Blog Post' : 'Add a Blog Post' }}</h2>
       <form @submit.prevent="submitForm">
         <div class="form-row">
@@ -152,9 +159,12 @@
             <p><strong>Updated:</strong> {{ formatDate(post.updated_at) }}</p>
           </div>
 
-          <div class="post-actions">
+          <div v-if="isAuthenticated" class="post-actions">
             <button @click="startEdit(post)" class="edit-button">Edit</button>
             <button @click="deleteBlogPost(post.id)" class="delete-button">Delete</button>
+          </div>
+          <div v-else class="read-only-notice">
+            <small>🔒 Login to edit or delete</small>
           </div>
         </div>
       </div>
@@ -168,7 +178,13 @@ import { useAuth } from '../services/auth.js';
 
 export default {
   name: 'BlogPostsDashboard',
-  setup() {
+  props: {
+    isAuthenticated: {
+      type: Boolean,
+      default: false
+    }
+  },
+  setup(props) {
     const { getAuthHeaders } = useAuth();
     const form = ref({
       title: '',
@@ -735,6 +751,26 @@ button[type="submit"]:hover {
 
 .delete-button:hover {
   background: #c82333;
+}
+
+.auth-notice {
+  text-align: center;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  color: #6c757d;
+}
+
+.read-only-notice {
+  text-align: center;
+  padding: 8px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.read-only-notice small {
+  color: #999;
 }
 
 @media (max-width: 768px) {

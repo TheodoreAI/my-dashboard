@@ -2,13 +2,20 @@
   <div class="cities-container">
     <header class="header">
       <h1>Cities Dashboard</h1>
-      <button @click="showForm = !showForm; if (!showForm) cancelEdit()" class="add-button">
+      <button 
+        v-if="isAuthenticated"
+        @click="showForm = !showForm; if (!showForm) cancelEdit()" 
+        class="add-button"
+      >
         {{ showForm ? 'Hide Form' : 'Add New City' }}
       </button>
+      <div v-else class="auth-notice">
+        <p>🔒 Login required to add or edit cities</p>
+      </div>
     </header>
 
     <!-- Add/Edit City Form -->
-    <div v-if="showForm" class="form-container">
+    <div v-if="showForm && isAuthenticated" class="form-container">
       <h2>{{ isEditing ? 'Edit City' : 'Add a City' }}</h2>
       <form @submit.prevent="submitForm">
         <div>
@@ -61,9 +68,12 @@
           <p><strong>Population:</strong> {{ formatNumber(city.population) }}</p>
           <p><strong>Founded:</strong> {{ city.founded }}</p>
           <p><strong>Crime Rate:</strong> {{ city.crime_rate }}%</p>
-          <div class="city-actions">
+          <div v-if="isAuthenticated" class="city-actions">
             <button @click="startEdit(city)" class="edit-button">Edit</button>
             <button @click="deleteCity(city.id)" class="delete-button">Delete</button>
+          </div>
+          <div v-else class="read-only-notice">
+            <small>🔒 Login to edit or delete</small>
           </div>
         </div>
       </div>
@@ -77,7 +87,13 @@ import { useAuth } from '../services/auth.js';
 
 export default {
   name: 'CitiesDashboard',
-  setup() {
+  props: {
+    isAuthenticated: {
+      type: Boolean,
+      default: false
+    }
+  },
+  setup(props) {
     const { getAuthHeaders } = useAuth();
     const form = ref({
       name: '',
@@ -452,5 +468,25 @@ button[type="submit"]:hover {
 
 .delete-button:hover {
   background: #c82333;
+}
+
+.auth-notice {
+  text-align: center;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  color: #6c757d;
+}
+
+.read-only-notice {
+  text-align: center;
+  padding: 8px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.read-only-notice small {
+  color: #999;
 }
 </style>

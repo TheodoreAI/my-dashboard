@@ -78,8 +78,8 @@ export const useAuth = () => {
   }
   
   return {
-    token: token.value,
-    user: user.value,
+    token,
+    user,
     isAuthenticated,
     login,
     register,
