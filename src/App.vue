@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import MoviesDashboard from './components/MoviesDashboard.vue';
 import CitiesDashboard from './components/CitiesDashboard.vue';
 import BlogPostsDashboard from './components/BlogPostsDashboard.vue';
+import BlogsPage from './components/BlogsPage.vue';
 import AdminDashboard from './components/AdminDashboard.vue';
 import AuthComponent from './components/AuthComponent.vue';
 import { useAuth } from './services/auth.js';
@@ -13,11 +14,12 @@ export default {
     MoviesDashboard,
     CitiesDashboard,
     BlogPostsDashboard,
+    BlogsPage,
     AdminDashboard,
     AuthComponent
   },
   setup() {
-    const currentDashboard = ref('movies');
+    const currentDashboard = ref('blogs');
     const { isAuthenticated, user, logout } = useAuth();
     const showLogin = ref(false);
 
@@ -88,6 +90,13 @@ export default {
             Blog Posts
           </button>
           <button 
+            @click="switchDashboard('blogs')" 
+            :class="{ active: currentDashboard === 'blogs' }"
+            class="nav-button"
+          >
+            📖 Blogs
+          </button>
+          <button 
             v-if="isAdmin"
             @click="switchDashboard('admin')" 
             :class="{ active: currentDashboard === 'admin' }"
@@ -126,6 +135,7 @@ export default {
       <MoviesDashboard v-if="currentDashboard === 'movies'" :is-authenticated="isAuthenticated" />
       <CitiesDashboard v-if="currentDashboard === 'cities'" :is-authenticated="isAuthenticated" />
       <BlogPostsDashboard v-if="currentDashboard === 'blog-posts'" :is-authenticated="isAuthenticated" />
+      <BlogsPage v-if="currentDashboard === 'blogs'" />
       <AdminDashboard v-if="currentDashboard === 'admin' && isAdmin" />
     </main>
   </div>
