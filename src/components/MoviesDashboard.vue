@@ -2,13 +2,20 @@
   <div class="movies-container">
     <header class="header">
       <h1>Movies Dashboard</h1>
-      <button @click="showForm = !showForm; if (!showForm) cancelEdit()" class="add-button">
+      <button 
+        v-if="isAuthenticated"
+        @click="showForm = !showForm; if (!showForm) cancelEdit()" 
+        class="add-button"
+      >
         {{ showForm ? 'Hide Form' : 'Add New Movie' }}
       </button>
+      <div v-else class="auth-notice">
+        <p>🔒 Login required to add or edit movies</p>
+      </div>
     </header>
 
     <!-- Add/Edit Movie Form -->
-    <div v-if="showForm" class="form-container">
+    <div v-if="showForm && isAuthenticated" class="form-container">
       <h2>{{ isEditing ? 'Edit Movie' : 'Add a Movie' }}</h2>
       <form @submit.prevent="submitForm">
         <div>
@@ -61,9 +68,12 @@
           <p><strong>Genre:</strong> {{ movie.genre }}</p>
           <p><strong>Director:</strong> {{ movie.director }}</p>
           <p><strong>Rating:</strong> {{ movie.rating }}/10</p>
-          <div class="movie-actions">
+          <div v-if="isAuthenticated" class="movie-actions">
             <button @click="startEdit(movie)" class="edit-button">Edit</button>
             <button @click="deleteMovie(movie.id)" class="delete-button">Delete</button>
+          </div>
+          <div v-else class="read-only-notice">
+            <small>🔒 Login to edit or delete</small>
           </div>
         </div>
       </div>
@@ -73,10 +83,19 @@
 
 <script>
 import { ref, onMounted } from 'vue';
+import { useAuth } from '../services/auth.js';
 
 export default {
   name: 'MoviesDashboard',
-  setup() {
+  props: {
+    isAuthenticated: {
+      type: Boolean,
+      default: false
+    }
+  },
+  setup(props) {
+    const { getAuthHeaders } = useAuth();
+    
     const form = ref({
       title: '',
       year: '',
@@ -90,7 +109,7 @@ export default {
     const showForm = ref(false);
     const editingMovie = ref(null);
     const isEditing = ref(false);
-    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/movies`;
+    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/db/movies`;
 
     const fetchMovies = async () => {
       loading.value = true;
@@ -122,15 +141,15 @@ export default {
       try {
         const res = await fetch(`${apiEndpoint}/${movieId}`, {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: getAuthHeaders()
         });
         if (res.ok) {
           // Remove movie from local array
           movies.value = movies.value.filter(movie => movie.id !== movieId);
+          response.value = 'Movie deleted successfully!';
         } else {
-          alert('Failed to delete movie');
+          const errorData = await res.json();
+          alert('Failed to delete movie: ' + (errorData.message || 'Unknown error'));
         }
       } catch (err) {
         alert('Error deleting movie: ' + err.message);
@@ -144,9 +163,7 @@ export default {
           // Update existing movie
           res = await fetch(`${apiEndpoint}/${editingMovie.value.id}`, {
             method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -160,15 +177,14 @@ export default {
             isEditing.value = false;
             editingMovie.value = null;
           } else {
-            response.value = 'Error: Failed to update movie';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to update movie');
           }
         } else {
           // Add new movie
           res = await fetch(`${apiEndpoint}`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -176,7 +192,8 @@ export default {
             // Refresh movie list to get the new movie with ID
             fetchMovies();
           } else {
-            response.value = 'Error: Failed to add movie';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to add movie');
           }
         }
         
@@ -447,5 +464,25 @@ button[type="submit"]:hover {
 
 .delete-button:hover {
   background: #c82333;
+}
+
+.auth-notice {
+  text-align: center;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  color: #6c757d;
+}
+
+.read-only-notice {
+  text-align: center;
+  padding: 8px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.read-only-notice small {
+  color: #999;
 }
 </style>

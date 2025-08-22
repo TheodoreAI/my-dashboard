@@ -2,13 +2,20 @@
   <div class="blog-posts-container">
     <header class="header">
       <h1>Blog Posts Dashboard</h1>
-      <button @click="showForm = !showForm; if (!showForm) cancelEdit()" class="add-button">
+      <button 
+        v-if="isAuthenticated"
+        @click="showForm = !showForm; if (!showForm) cancelEdit()" 
+        class="add-button"
+      >
         {{ showForm ? 'Hide Form' : 'Add New Post' }}
       </button>
+      <div v-else class="auth-notice">
+        <p>🔒 Login required to add or edit blog posts</p>
+      </div>
     </header>
 
     <!-- Add/Edit Blog Post Form -->
-    <div v-if="showForm" class="form-container">
+    <div v-if="showForm && isAuthenticated" class="form-container">
       <h2>{{ isEditing ? 'Edit Blog Post' : 'Add a Blog Post' }}</h2>
       <form @submit.prevent="submitForm">
         <div class="form-row">
@@ -152,9 +159,12 @@
             <p><strong>Updated:</strong> {{ formatDate(post.updated_at) }}</p>
           </div>
 
-          <div class="post-actions">
+          <div v-if="isAuthenticated" class="post-actions">
             <button @click="startEdit(post)" class="edit-button">Edit</button>
             <button @click="deleteBlogPost(post.id)" class="delete-button">Delete</button>
+          </div>
+          <div v-else class="read-only-notice">
+            <small>🔒 Login to edit or delete</small>
           </div>
         </div>
       </div>
@@ -164,10 +174,18 @@
 
 <script>
 import { ref, onMounted, watch } from 'vue';
+import { useAuth } from '../services/auth.js';
 
 export default {
   name: 'BlogPostsDashboard',
-  setup() {
+  props: {
+    isAuthenticated: {
+      type: Boolean,
+      default: false
+    }
+  },
+  setup(props) {
+    const { getAuthHeaders } = useAuth();
     const form = ref({
       title: '',
       slug: '',
@@ -195,7 +213,7 @@ export default {
     const editingPost = ref(null);
     const isEditing = ref(false);
     const tagsInput = ref('');
-    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/blog-posts`;
+    const apiEndpoint = `${import.meta.env.VITE_API_BASE_URL}/db/blog-posts`;
 
     // Watch title to auto-generate slug
     watch(() => form.value.title, (newTitle) => {
@@ -238,15 +256,15 @@ export default {
       try {
         const res = await fetch(`${apiEndpoint}/${postId}`, {
           method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+          headers: getAuthHeaders()
         });
         if (res.ok) {
           // Remove post from local array
           blogPosts.value = blogPosts.value.filter(post => post.id !== postId);
+          response.value = 'Blog post deleted successfully!';
         } else {
-          alert('Failed to delete blog post');
+          const errorData = await res.json();
+          alert('Failed to delete blog post: ' + (errorData.message || 'Unknown error'));
         }
       } catch (err) {
         alert('Error deleting blog post: ' + err.message);
@@ -266,9 +284,7 @@ export default {
           // Update existing post
           res = await fetch(`${apiEndpoint}/${editingPost.value.id}`, {
             method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -282,15 +298,14 @@ export default {
             isEditing.value = false;
             editingPost.value = null;
           } else {
-            response.value = 'Error: Failed to update blog post';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to update blog post');
           }
         } else {
           // Add new post
           res = await fetch(apiEndpoint, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(form.value)
           });
           if (res.ok) {
@@ -298,7 +313,8 @@ export default {
             // Refresh posts list to get the new post with ID
             fetchBlogPosts();
           } else {
-            response.value = 'Error: Failed to add blog post';
+            const errorData = await res.json();
+            response.value = 'Error: ' + (errorData.message || 'Failed to add blog post');
           }
         }
         
@@ -735,6 +751,26 @@ button[type="submit"]:hover {
 
 .delete-button:hover {
   background: #c82333;
+}
+
+.auth-notice {
+  text-align: center;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  color: #6c757d;
+}
+
+.read-only-notice {
+  text-align: center;
+  padding: 8px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.read-only-notice small {
+  color: #999;
 }
 
 @media (max-width: 768px) {
